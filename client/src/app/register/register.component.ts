@@ -1,6 +1,7 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ValidatorFn, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AccountService } from '../_services/account.service';
 
 @Component({
@@ -8,14 +9,21 @@ import { AccountService } from '../_services/account.service';
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.css']
 })
-export class RegisterComponent implements OnInit {
+export class RegisterComponent implements OnInit, OnDestroy {
   @Output() cancelRegister = new EventEmitter();
   registerForm: FormGroup;
   maxDate: Date;
   validationErrors: string[] = [];
+  subscriptions: Subscription[] = [];
 
   constructor(private accountService: AccountService,
     private fb: FormBuilder, private router: Router) { }
+  
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(subscription => {
+      subscription.unsubscribe();
+    });
+  }
 
   ngOnInit(): void {
     this.initializeForm();
@@ -35,6 +43,10 @@ export class RegisterComponent implements OnInit {
           Validators.minLength(4), Validators.maxLength(8)]],
       confirmPassword: ['', [Validators.required, this.matchValues('password')]]
     });
+
+    this.subscriptions.push(this.registerForm.controls["password"].valueChanges.subscribe(() => {
+      this.registerForm.controls['confirmPassword'].updateValueAndValidity();
+    }));
   }
 
   matchValues(matchTo: string): ValidatorFn {
