@@ -9,6 +9,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using API.Helpers;
 
 namespace API.Controllers
 {
@@ -18,7 +19,7 @@ namespace API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
         private readonly IPhotoService _photoService;
-        
+
         public UsersController(IUserRepository userRepository, IMapper mapper, IPhotoService photoService)
         {
             _photoService = photoService;
@@ -29,9 +30,12 @@ namespace API.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<MemberDto>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<MemberDto>>> GetUsers([FromQuery]UserParams userParams)
         {
-            var users = await _userRepository.GetMembersAsync();
+            var users = await _userRepository.GetMembersAsync(userParams);
+
+            Response.AddPaginationHeader(users.CurrentPage, users.PageSize,
+                users.TotalCount, users.TotalPages);
 
             return Ok(users);
         }
@@ -62,7 +66,7 @@ namespace API.Controllers
         public async Task<ActionResult<PhotoDto>> AddPhoto(IFormFile file)
         {
             var user = await _userRepository.GetUserByUsernameAsync(User.GetUserName());
-            
+
             var result = await _photoService.AddPhotoAsync(file);
 
             if (result.Error != null) return BadRequest(result.Error.Message);
@@ -83,7 +87,7 @@ namespace API.Controllers
             if (await _userRepository.SaveAllAsync())
             {
                 return CreatedAtRoute("GetUser", new {username = user.UserName}, _mapper.Map<PhotoDto>(photo));
-            }    
+            }
 
             return BadRequest("Problem adding photo");
         }
@@ -126,7 +130,7 @@ namespace API.Controllers
             user.Photos.Remove(photo);
 
             if (await _userRepository.SaveAllAsync()) return Ok();
-            
+
             return BadRequest("Failed to delete photo");
         }
     }
